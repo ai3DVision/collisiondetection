@@ -11,17 +11,19 @@ void CTCDNarrowPhase::findCollisions(const History &h, const set<pair<VertexFace
 {
 	for(set<pair<VertexFaceStencil, double> >::const_iterator it = candidateVFS.begin(); it != candidateVFS.end(); ++it)
 	{
-		if(checkVFS(h, it->first, it->second))
-			vfs.insert(it->first);
+    VertexFaceStencil vf =  it->first;
+		if(checkVFS(h, vf, it->second))
+			vfs.insert(vf);
 	}
 	for(set<pair<EdgeEdgeStencil, double> >::const_iterator it = candidateEES.begin(); it != candidateEES.end(); ++it)
 	{
-		if(checkEES(h, it->first, it->second))
-			ees.insert(it->first);
+    EdgeEdgeStencil ee = it->first;
+		if(checkEES(h, ee, it->second))
+			ees.insert(ee);
 	}
 }
 
-bool CTCDNarrowPhase::checkVFS(const History &h, VertexFaceStencil vfs, double eta)
+bool CTCDNarrowPhase::checkVFS(const History &h, VertexFaceStencil & vfs, double eta)
 {
 	vector<int> verts;
 	verts.push_back(vfs.p);
@@ -44,9 +46,13 @@ bool CTCDNarrowPhase::checkVFS(const History &h, VertexFaceStencil vfs, double e
 						next->pos[0], next->pos[1], next->pos[2], next->pos[3],
 						eta, t))
 		{
-			if(verts[0] == 141 && verts[1] == 7 && verts[2] == 12 && verts[3] == 19)
-				std::cout << "VF " << it->time + t*tinterval << std::endl;
-			return true;
+      if(record_min_t)
+      {
+        vfs.min_t = std::min(vfs.min_t,t);
+      }else
+      {
+        return true;
+      }
 		}
 			
 		// Vertex-face edges
@@ -56,9 +62,13 @@ bool CTCDNarrowPhase::checkVFS(const History &h, VertexFaceStencil vfs, double e
 						next->pos[0], next->pos[1+(edge%3)], next->pos[1+ ((edge+1)%3)],
 						eta, t))
 			{
-			if(verts[0] == 141 && verts[1] == 7 && verts[2] == 12 && verts[3] == 19)
-				std::cout << "VF " << it->time + t*tinterval << std::endl;
-				return true;
+				if(record_min_t)
+        {
+          vfs.min_t = std::min(vfs.min_t,t);
+        }else
+        {
+         return true;
+        }
 			}
 		}
 		// Vertex-face vertices
@@ -68,16 +78,26 @@ bool CTCDNarrowPhase::checkVFS(const History &h, VertexFaceStencil vfs, double e
 						  next->pos[0], next->pos[1+vert],
 						  eta, t))
 			{
-			if(verts[0] == 141 && verts[1] == 7 && verts[2] == 12 && verts[3] == 19)
-				std::cout << "VF " << it->time + t*tinterval << std::endl;
-				return true;
+				if(record_min_t)
+        {
+          vfs.min_t = std::min(vfs.min_t,t);
+        }else
+        {
+         return true;
+        }
 			}
 		}
 	}
-	return false;
+  if(record_min_t)
+  {
+    return std::isfinite(vfs.min_t);
+  }else
+  {
+    return false;
+  }
 }
 
-bool CTCDNarrowPhase::checkEES(const History &h, EdgeEdgeStencil ees, double eta)
+bool CTCDNarrowPhase::checkEES(const History &h, EdgeEdgeStencil & ees, double eta)
 {
 	vector<int> verts;
 	verts.push_back(ees.p0);
@@ -98,44 +118,104 @@ bool CTCDNarrowPhase::checkEES(const History &h, EdgeEdgeStencil ees, double eta
 					next->pos[0], next->pos[1], next->pos[2], next->pos[3],
 					      eta, t))
 		{			
-			return true;
+			if(record_min_t)
+      {
+        ees.min_t = std::min(ees.min_t,t);
+      }else
+      {
+       return true;
+      }
 		}
 
 		// Edge-edge vertices
 		if(CTCD::vertexEdgeCTCD(it->pos[0], it->pos[2], it->pos[3], next->pos[0], next->pos[2], next->pos[3], eta, t))
 		{
-			return true;
+			if(record_min_t)
+      {
+        ees.min_t = std::min(ees.min_t,t);
+      }else
+      {
+       return true;
+      }
 		}
 		if(CTCD::vertexEdgeCTCD(it->pos[1], it->pos[2], it->pos[3], next->pos[1], next->pos[2], next->pos[3], eta, t))
 		{
-			return true;
+			if(record_min_t)
+      {
+        ees.min_t = std::min(ees.min_t,t);
+      }else
+      {
+       return true;
+      }
 		}
 		if(CTCD::vertexEdgeCTCD(it->pos[2], it->pos[0], it->pos[1], next->pos[2], next->pos[0], next->pos[1], eta, t))
 		{
-			return true;
+			if(record_min_t)
+      {
+        ees.min_t = std::min(ees.min_t,t);
+      }else
+      {
+       return true;
+      }
 		}
 		if(CTCD::vertexEdgeCTCD(it->pos[3], it->pos[0], it->pos[1], next->pos[3], next->pos[0], next->pos[1], eta, t))
 		{
-			return true;
+			if(record_min_t)
+      {
+        ees.min_t = std::min(ees.min_t,t);
+      }else
+      {
+       return true;
+      }
 		}
 
 		// edge vertex-edge vertex
 		if(CTCD::vertexVertexCTCD(it->pos[0], it->pos[2], next->pos[0], next->pos[2], eta, t))
 		{
-			return true;
+			if(record_min_t)
+      {
+        ees.min_t = std::min(ees.min_t,t);
+      }else
+      {
+       return true;
+      }
 		}
 		if(CTCD::vertexVertexCTCD(it->pos[0], it->pos[3], next->pos[0], next->pos[3], eta, t))
 		{
-			return true;
+			if(record_min_t)
+      {
+        ees.min_t = std::min(ees.min_t,t);
+      }else
+      {
+       return true;
+      }
 		}
 		if(CTCD::vertexVertexCTCD(it->pos[1], it->pos[2], next->pos[1], next->pos[2], eta, t))
 		{
-			return true;
+			if(record_min_t)
+      {
+        ees.min_t = std::min(ees.min_t,t);
+      }else
+      {
+       return true;
+      }
 		}
 		if(CTCD::vertexVertexCTCD(it->pos[1], it->pos[3], next->pos[1], next->pos[3], eta, t))
 		{
-			return true;
+			if(record_min_t)
+      {
+        ees.min_t = std::min(ees.min_t,t);
+      }else
+      {
+       return true;
+      }
 		}
 	}
-	return false;		
+  if(record_min_t)
+  {
+    return std::isfinite(ees.min_t);
+  }else
+  {
+    return false;
+  }
 }

@@ -10,8 +10,8 @@ public:
 		std::set<VertexFaceStencil> &vfs, std::set<EdgeEdgeStencil> &ees);
 
 private:
-	bool checkVFS(const History &h, VertexFaceStencil vfs, double eta);
-	bool checkEES(const History &h, EdgeEdgeStencil vfs, double eta);
+	bool checkVFS(const History &h, VertexFaceStencil & vfs, double eta);
+	bool checkEES(const History &h, EdgeEdgeStencil & ees, double eta);
 };
 
 #endif

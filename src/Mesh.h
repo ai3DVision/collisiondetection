@@ -3,8 +3,9 @@
 
 #include <Eigen/Core>
 
-struct Mesh
+class Mesh
 {
+public:
 	Eigen::VectorXd vertices;
 	Eigen::Matrix3Xi faces;
 

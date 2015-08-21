@@ -20,7 +20,7 @@ void TrivialBroadPhase::findCollisionCandidates(const History &h, const Mesh &m,
 			if(allfixed)
 				continue;
 
-			VertexFaceStencil newvfs(i, m.faces.coeff(0, j), m.faces.coeff(1, j), m.faces.coeff(2, j));
+			VertexFaceStencil newvfs(i, m.faces.coeff(0, j), m.faces.coeff(1, j), m.faces.coeff(2, j),j);
 			vfs.insert(newvfs);
 		}
 	}
@@ -46,7 +46,7 @@ void TrivialBroadPhase::findCollisionCandidates(const History &h, const Mesh &m,
 			if(allfixed)
 				continue;
 			
-			EdgeEdgeStencil newees(e1v1, e1v2, e2v1, e2v2);
+			EdgeEdgeStencil newees(e1v1, e1v2, e2v1, e2v2,face1,face2,(edge1+2)%3,(edge2+2)%3);
 			ees.insert(newees);
 		}
 	}

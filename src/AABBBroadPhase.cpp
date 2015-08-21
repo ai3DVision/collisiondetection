@@ -134,9 +134,9 @@ void AABBBroadPhase::intersect(AABBNode *left, AABBNode *right, const Mesh &m, s
 				allrfixed = allrfixed && fixedVerts.count(m.faces.coeff(j, lleft->face));
 			}
 			if(!alllfixed)
-				vfs.insert(VertexFaceStencil(m.faces.coeff(i, lleft->face), m.faces.coeff(0, lright->face), m.faces.coeff(1, lright->face), m.faces.coeff(2, lright->face)));
+				vfs.insert(VertexFaceStencil(m.faces.coeff(i, lleft->face), m.faces.coeff(0, lright->face), m.faces.coeff(1, lright->face), m.faces.coeff(2, lright->face),lright->face));
 			if(!allrfixed)
-				vfs.insert(VertexFaceStencil(m.faces.coeff(i, lright->face), m.faces.coeff(0, lleft->face), m.faces.coeff(1, lleft->face), m.faces.coeff(2, lleft->face)));
+				vfs.insert(VertexFaceStencil(m.faces.coeff(i, lright->face), m.faces.coeff(0, lleft->face), m.faces.coeff(1, lleft->face), m.faces.coeff(2, lleft->face),lleft->face));
 			for(int j=0; j<3; j++)
 			{
 				bool allefixed = true;
@@ -145,7 +145,16 @@ void AABBBroadPhase::intersect(AABBNode *left, AABBNode *right, const Mesh &m, s
 				allefixed = allefixed && fixedVerts.count(m.faces.coeff(j, lright->face));
 				allefixed = allefixed && fixedVerts.count(m.faces.coeff((j+1)%3, lright->face));
 				if(!allefixed)
-					ees.insert(EdgeEdgeStencil(m.faces.coeff(i, lleft->face), m.faces.coeff((i+1)%3, lleft->face), m.faces.coeff(j, lright->face), m.faces.coeff((j+1)%3, lright->face)));
+					ees.insert(
+            EdgeEdgeStencil(
+              m.faces.coeff(i, lleft->face), 
+              m.faces.coeff((i+1)%3, lleft->face), 
+              m.faces.coeff(j, lright->face), 
+              m.faces.coeff((j+1)%3, lright->face),
+              lleft->face,
+              lright->face,
+              (i+2)%3,
+              (j+2)%3));
 			}
 		}		
 	}

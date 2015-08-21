@@ -43,33 +43,62 @@ void KDOPBroadPhase::findCollisionCandidates(const History &h, const Mesh &m, do
 KDOPNode *KDOPBroadPhase::buildKDOPTree(const History &h, const Mesh &m, double outerEta)
 {
   vector<KDOPNode *> leaves;
+  vector<bool> referenced(m.vertices.size()/3,false);
   for(int i=0; i<(int)m.faces.cols(); i++)
+  {
+    KDOPLeafNode *node = new KDOPLeafNode;
+    node->type = KDOPLeafNode::PRIMITIVE_TYPE_FACE;
+    node->id = i;
+    int verts[3];
+    for(int j=0; j<3; j++)
+    {
+      verts[j] = m.faces.coeff(j, i);
+      referenced[m.faces.coeff(j, i)] = true;
+    }
+    for(int j=0; j<K; j++)
+    {
+      node->mins[j] = std::numeric_limits<double>::infinity();
+      node->maxs[j] = -std::numeric_limits<double>::infinity();
+    }
+    for(int j=0; j<3; j++)
+    {
+      for(vector<HistoryEntry>::const_iterator it = h.getVertexHistory(verts[j]).begin(); it != h.getVertexHistory(verts[j]).end(); ++it)
+      {
+        for(int k=0; k<K; k++)
+        {
+          node->mins[k] = min(it->pos.dot(DOPaxis[k]) - outerEta, node->mins[k]);
+          node->maxs[k] = max(it->pos.dot(DOPaxis[k]) + outerEta, node->maxs[k]);
+        }
+      }
+    }
+    leaves.push_back(node);		
+  }
+  // also add leaf nodes for unreferenced vertices
+  for(int i = 0;i<(int)m.vertices.size()/3;i++)
+  {
+    if(!referenced[i])
     {
       KDOPLeafNode *node = new KDOPLeafNode;
-      node->face = i;
-      int verts[3];
-      for(int j=0; j<3; j++)
-	{
-	  verts[j] = m.faces.coeff(j, i);
-	}
+      node->type = KDOPLeafNode::PRIMITIVE_TYPE_VERTEX;
+      node->id = i;
+      // initialize extents
       for(int j=0; j<K; j++)
-	{
-	  node->mins[j] = std::numeric_limits<double>::infinity();
-	  node->maxs[j] = -std::numeric_limits<double>::infinity();
-	}
-      for(int j=0; j<3; j++)
-	{
-	  for(vector<HistoryEntry>::const_iterator it = h.getVertexHistory(verts[j]).begin(); it != h.getVertexHistory(verts[j]).end(); ++it)
-	    {
-	      for(int k=0; k<K; k++)
-		{
-		  node->mins[k] = min(it->pos.dot(DOPaxis[k]) - outerEta, node->mins[k]);
-		  node->maxs[k] = max(it->pos.dot(DOPaxis[k]) + outerEta, node->maxs[k]);
-		}
-	    }
-	}
+      {
+        node->mins[j] = std::numeric_limits<double>::infinity();
+        node->maxs[j] = -std::numeric_limits<double>::infinity();
+      }
+      // loop through history
+      for(vector<HistoryEntry>::const_iterator it = h.getVertexHistory(i).begin(); it != h.getVertexHistory(i).end(); ++it)
+      {
+        for(int k=0; k<K; k++)
+        {
+          node->mins[k] = min(it->pos.dot(DOPaxis[k]) - outerEta, node->mins[k]);
+          node->maxs[k] = max(it->pos.dot(DOPaxis[k]) + outerEta, node->maxs[k]);
+        }
+      }
       leaves.push_back(node);		
     }
+  }
   return buildKDOPInterior(leaves);
 }
 
@@ -151,35 +180,79 @@ void KDOPBroadPhase::intersect(KDOPNode *left, KDOPNode *right, const Mesh &m, s
 	{
 		KDOPLeafNode *lleft = (KDOPLeafNode *)left;
 		KDOPLeafNode *lright = (KDOPLeafNode *)right;
-		if(m.neighboringFaces(lleft->face, lright->face))
-		  return;
+    if(
+      lleft->type == KDOPLeafNode::PRIMITIVE_TYPE_FACE &&
+      lright->type == KDOPLeafNode::PRIMITIVE_TYPE_FACE)
+    {
+		  if(
+          m.neighboringFaces(lleft->id, lright->id))
+		    return;
 
-		// 6 vertex-face and 9 edge-edge
-		for(int i=0; i<3; i++)
-		{
-			bool alllfixed = true;
-			bool allrfixed = true;
-			alllfixed = alllfixed && fixedVerts.count(m.faces.coeff(i, lleft->face));
-			allrfixed = allrfixed && fixedVerts.count(m.faces.coeff(i, lright->face));
-			for(int j=0; j<3; j++)
-			{
-				alllfixed = alllfixed && fixedVerts.count(m.faces.coeff(j, lright->face));
-				allrfixed = allrfixed && fixedVerts.count(m.faces.coeff(j, lleft->face));
-			}
-			if(!alllfixed)
-				vfs.insert(VertexFaceStencil(m.faces.coeff(i, lleft->face), m.faces.coeff(0, lright->face), m.faces.coeff(1, lright->face), m.faces.coeff(2, lright->face)));
-			if(!allrfixed)
-				vfs.insert(VertexFaceStencil(m.faces.coeff(i, lright->face), m.faces.coeff(0, lleft->face), m.faces.coeff(1, lleft->face), m.faces.coeff(2, lleft->face)));
-			for(int j=0; j<3; j++)
-			{
-				bool allefixed = true;
-				allefixed = allefixed && fixedVerts.count(m.faces.coeff(i, lleft->face));
-				allefixed = allefixed && fixedVerts.count(m.faces.coeff((i+1)%3, lleft->face));
-				allefixed = allefixed && fixedVerts.count(m.faces.coeff(j, lright->face));
-				allefixed = allefixed && fixedVerts.count(m.faces.coeff((j+1)%3, lright->face));
-				if(!allefixed)
-					ees.insert(EdgeEdgeStencil(m.faces.coeff(i, lleft->face), m.faces.coeff((i+1)%3, lleft->face), m.faces.coeff(j, lright->face), m.faces.coeff((j+1)%3, lright->face)));
-			}
-		}		
+		  // 6 vertex-face and 9 edge-edge
+		  for(int i=0; i<3; i++)
+		  {
+		  	bool alllfixed = true;
+		  	bool allrfixed = true;
+		  	alllfixed = alllfixed && fixedVerts.count(m.faces.coeff(i, lleft->id));
+		  	allrfixed = allrfixed && fixedVerts.count(m.faces.coeff(i, lright->id));
+		  	for(int j=0; j<3; j++)
+		  	{
+		  		alllfixed = alllfixed && fixedVerts.count(m.faces.coeff(j, lright->id));
+		  		allrfixed = allrfixed && fixedVerts.count(m.faces.coeff(j, lleft->id));
+		  	}
+		  	if(!alllfixed)
+		  		vfs.insert(VertexFaceStencil(m.faces.coeff(i, lleft->id), m.faces.coeff(0, lright->id), m.faces.coeff(1, lright->id), m.faces.coeff(2, lright->id),lright->id));
+		  	if(!allrfixed)
+		  		vfs.insert(VertexFaceStencil(m.faces.coeff(i, lright->id), m.faces.coeff(0, lleft->id), m.faces.coeff(1, lleft->id), m.faces.coeff(2, lleft->id),lleft->id));
+		  	for(int j=0; j<3; j++)
+		  	{
+		  		bool allefixed = true;
+		  		allefixed = allefixed && fixedVerts.count(m.faces.coeff(i, lleft->id));
+		  		allefixed = allefixed && fixedVerts.count(m.faces.coeff((i+1)%3, lleft->id));
+		  		allefixed = allefixed && fixedVerts.count(m.faces.coeff(j, lright->id));
+		  		allefixed = allefixed && fixedVerts.count(m.faces.coeff((j+1)%3, lright->id));
+		  		if(!allefixed)
+		  			ees.insert(
+              EdgeEdgeStencil(
+                m.faces.coeff(i, lleft->id), 
+                m.faces.coeff((i+1)%3, lleft->id), 
+                m.faces.coeff(j, lright->id), 
+                m.faces.coeff((j+1)%3, lright->id),
+                lleft->id,
+                lright->id,
+                (i+2)%3,
+                (j+2)%3));
+		  	}
+		  }		
+    }else if(
+      lleft->type == KDOPLeafNode::PRIMITIVE_TYPE_VERTEX &&
+      lright->type == KDOPLeafNode::PRIMITIVE_TYPE_VERTEX)
+    {
+      // both vertices... I guess ignore these...
+    }else
+    {
+      const auto & addvf = [&](const int v, const int f)
+      {
+		  	bool allffixed = true;
+		  	allffixed = allffixed && fixedVerts.count(v);
+		  	for(int j=0; j<3; j++)
+		  	{
+		  		allffixed = allffixed && fixedVerts.count(m.faces.coeff(j,f));
+		  	}
+		  	if(!allffixed)
+		  		vfs.insert(VertexFaceStencil(v, m.faces.coeff(0,f), m.faces.coeff(1,f), m.faces.coeff(2,f),f));
+      };
+      if(lleft->type == KDOPLeafNode::PRIMITIVE_TYPE_FACE)
+      {
+        assert(lright->type == KDOPLeafNode::PRIMITIVE_TYPE_VERTEX);
+        addvf(lright->id,lleft->id);
+      }else
+      {
+        assert(lleft->type == KDOPLeafNode::PRIMITIVE_TYPE_VERTEX);
+        assert(lright->type == KDOPLeafNode::PRIMITIVE_TYPE_FACE);
+        addvf(lleft->id,lright->id);
+      }
+    }
+
 	}
 }

@@ -43,7 +43,13 @@ struct KDOPLeafNode : public KDOPNode
 {
 	virtual bool isLeaf() {return true;}
 
-	int face;
+  enum PrimitiveType
+  {
+    PRIMITIVE_TYPE_FACE = 0,
+    PRIMITIVE_TYPE_VERTEX = 1,
+    NUM_PRIMITIVE_TYPES = 2
+  } type;
+	int id;
 };
 
 class KDOPBroadPhase : public BroadPhase
