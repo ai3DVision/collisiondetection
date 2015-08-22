@@ -39,7 +39,7 @@ bool CTCDNarrowPhase::checkVFS(const History &h, VertexFaceStencil & vfs, double
 		if(next == sh.end())
 			break;
 
-		double tinterval = next->time - it->time;
+//		double tinterval = next->time - it->time;
 
 		double t;
 		if(CTCD::vertexFaceCTCD(it->pos[0], it->pos[1], it->pos[2], it->pos[3],
