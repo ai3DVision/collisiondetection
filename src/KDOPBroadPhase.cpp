@@ -22,8 +22,7 @@ KDOPBroadPhase::KDOPBroadPhase()
   DOPaxis.push_back(Vector3d(1.0, 1.0, -1.0));
   DOPaxis.push_back(Vector3d(1.0, -1.0, 1.0));
   DOPaxis.push_back(Vector3d(1.0, -1.0, -1.0));
-  if(K>DOPaxis.size())
-    exit(0);
+  assert(K<=DOPaxis.size() && "K should be less than DOPaxis size");
 
   for(int i=0; i<(int)DOPaxis.size(); i++)
     {
@@ -31,30 +30,90 @@ KDOPBroadPhase::KDOPBroadPhase()
     }
 }
 
-void KDOPBroadPhase::findCollisionCandidates(const History &h, const Mesh &m, double outerEta, set<VertexFaceStencil> &vfs, set<EdgeEdgeStencil> &ees, const std::set<int> &fixedVerts)
+void KDOPBroadPhase::findCollisionCandidates(
+  const History &h, 
+  const Mesh &m, 
+  double outerEta, 
+  const std::set<int> &fixedVerts,
+  set<VertexFaceStencil> &vfs, 
+  set<EdgeEdgeStencil> &ees)
 {
 	vfs.clear();
 	ees.clear();
-	KDOPNode *tree = buildKDOPTree(h, m, outerEta);
+  // Build tree with trivial mask (include everything)
+	KDOPNode *tree = 
+    buildKDOPTree(h,m,outerEta,[](const int v)->bool{return true;});
 	intersect(tree, tree, m, vfs, ees, fixedVerts);
 	delete tree;
 }
 
-KDOPNode *KDOPBroadPhase::buildKDOPTree(const History &h, const Mesh &m, double outerEta)
+void KDOPBroadPhase::findCollisionCandidates(
+  const History &h, 
+  const Mesh &m, 
+  double outerEta, 
+  const std::set<int> &fixedVerts,
+  const Eigen::VectorXi &components,
+  std::set<VertexFaceStencil> &vfs, 
+  std::set<EdgeEdgeStencil> &ees)
+{
+  using namespace std;
+  if(components.size() == 0)
+  {
+    return findCollisionCandidates(h,m,outerEta,fixedVerts,vfs,ees);
+  }
+  assert(components.size() == m.vertices.size() && 
+    "#components should match mesh #vertices");
+  // number of components
+  const int nc = components.maxCoeff()+1;
+  vfs.clear();
+  ees.clear();
+  std::vector<std::shared_ptr<KDOPNode> > trees(nc);
+  // build a tree for each component
+  for(int c = 0;c<nc;c++)
+  {
+    trees[c] = std::shared_ptr<KDOPNode>(buildKDOPTree(
+      h,m,outerEta,
+      [&components,&c](const int v)->bool{return components[v]==c;}));
+  }
+  // check collisions between trees c and d
+  for(int c = 0;c<nc;c++)
+  {
+    for(int d = c+1;d<nc;d++)
+    {
+      intersect(&*trees[c], &*trees[d], m, vfs, ees, fixedVerts);
+    }
+  }
+  // memory leak trees
+}
+
+KDOPNode *KDOPBroadPhase::buildKDOPTree(
+  const History &h, 
+  const Mesh &m, 
+  double outerEta,
+  const std::function<bool(const int vertex_index)> & mask)
 {
   vector<KDOPNode *> leaves;
   vector<bool> referenced(m.vertices.size()/3,false);
   for(int i=0; i<(int)m.faces.cols(); i++)
   {
-    KDOPLeafNode *node = new KDOPLeafNode;
-    node->type = KDOPLeafNode::PRIMITIVE_TYPE_FACE;
-    node->id = i;
     int verts[3];
     for(int j=0; j<3; j++)
     {
       verts[j] = m.faces.coeff(j, i);
       referenced[m.faces.coeff(j, i)] = true;
     }
+    assert(
+      mask(verts[0]) == mask(verts[1]) && 
+      mask(verts[0]) == mask(verts[2]) && 
+      "mask should be same across face");
+    // if any not in mask then skip this face
+    if( !mask(verts[0]) || !mask(verts[1]) || !mask(verts[2]))
+    {
+      continue;
+    }
+    KDOPLeafNode *node = new KDOPLeafNode;
+    node->type = KDOPLeafNode::PRIMITIVE_TYPE_FACE;
+    node->id = i;
     for(int j=0; j<K; j++)
     {
       node->mins[j] = std::numeric_limits<double>::infinity();
@@ -76,7 +135,8 @@ KDOPNode *KDOPBroadPhase::buildKDOPTree(const History &h, const Mesh &m, double 
   // also add leaf nodes for unreferenced vertices
   for(int i = 0;i<(int)m.vertices.size()/3;i++)
   {
-    if(!referenced[i])
+    // if is not referenced and is masked
+    if(!referenced[i] && mask(i))
     {
       KDOPLeafNode *node = new KDOPLeafNode;
       node->type = KDOPLeafNode::PRIMITIVE_TYPE_VERTEX;

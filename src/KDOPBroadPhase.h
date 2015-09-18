@@ -1,4 +1,5 @@
 #include "RetrospectiveDetection.h"
+#include <functional>
 
 #define K 13
 
@@ -57,9 +58,29 @@ class KDOPBroadPhase : public BroadPhase
 public:
   KDOPBroadPhase();
 
-  virtual void findCollisionCandidates(const History &h, const Mesh &m, double outerEta, std::set<VertexFaceStencil> &vfs, std::set<EdgeEdgeStencil> &ees, const std::set<int> &fixedVerts);
+  virtual void findCollisionCandidates(
+    const History &h, 
+    const Mesh &m, 
+    double outerEta, 
+    const std::set<int> &fixedVerts,
+    std::set<VertexFaceStencil> &vfs, 
+    std::set<EdgeEdgeStencil> &ees);
+  virtual void findCollisionCandidates(
+    const History &h, 
+    const Mesh &m, 
+    double outerEta, 
+    const std::set<int> &fixedVerts,
+    const Eigen::VectorXi &components,
+    std::set<VertexFaceStencil> &vfs, 
+    std::set<EdgeEdgeStencil> &ees);
  private:
-  KDOPNode *buildKDOPTree(const History &h, const Mesh &m, double outerEta);
+  //   mask  function handle computing whether vertex is to be considered or
+  //     not, given vertex index
+  KDOPNode *buildKDOPTree(
+    const History &h, 
+    const Mesh &m, 
+    double outerEta,
+    const std::function<bool(const int vertex_index)> & mask);
   KDOPNode *buildKDOPInterior(std::vector<KDOPNode *> &children);
   void intersect(KDOPNode *left, KDOPNode *right, const Mesh &m, std::set<VertexFaceStencil> &vfs, std::set<EdgeEdgeStencil> &ees, const std::set<int> &fixedVerts);
   

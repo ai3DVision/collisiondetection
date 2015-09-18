@@ -42,7 +42,7 @@ double Distance::meshSelfDistance(const Eigen::VectorXd &verts, const Eigen::Mat
 
 	AABBBroadPhase bp;
 
-	bp.findCollisionCandidates(h, m, closest, vfs, ees, fixedVerts);	
+	bp.findCollisionCandidates(h, m, closest, fixedVerts, vfs, ees);	
 
 	std::cout << "Checking " << vfs.size() << " vertex-face and " << ees.size() << " edge-edge stencils" << std::endl;
 

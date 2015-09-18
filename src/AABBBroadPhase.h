@@ -47,7 +47,13 @@ struct AABBLeafNode : public AABBNode
 class AABBBroadPhase : public BroadPhase
 {
 public:
-	virtual void findCollisionCandidates(const History &h, const Mesh &m, double outerEta, std::set<VertexFaceStencil> &vfs, std::set<EdgeEdgeStencil> &ees, const std::set<int> &fixedVerts);
+	virtual void findCollisionCandidates(
+    const History &h, 
+    const Mesh &m, 
+    double outerEta, 
+    const std::set<int> &fixedVerts,
+    std::set<VertexFaceStencil> &vfs, 
+    std::set<EdgeEdgeStencil> &ees);
 private:
 	AABBNode *buildAABBTree(const History &h, const Mesh &m, double outerEta);
 	AABBNode *buildAABBInterior(std::vector<AABBNode *> &children);

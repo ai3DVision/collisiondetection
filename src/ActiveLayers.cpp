@@ -190,7 +190,7 @@ bool ActiveLayers::collisionDetection(const Mesh &m, set<VertexFaceStencil> &vfs
 	vfsToAdd.clear();
 	eesToAdd.clear();
 	
-	bp_->findCollisionCandidates(*history_, m, outerEta_, vfsToAdd, eesToAdd, fixedVerts);
+	bp_->findCollisionCandidates(*history_, m, outerEta_, fixedVerts, vfsToAdd, eesToAdd);
 	if(verbose_)
 	  std::cout << "Broad phase found " << vfsToAdd.size() << " vertex-face and " << eesToAdd.size() << " edge-edge candidates" << std::endl;
 	set<pair<VertexFaceStencil, double> > etavfs;
